@@ -23,22 +23,28 @@ public class EmployeeServiceImpl implements EmployeeService {
     private final RestTemplate restTemplate;
     private final String serverBaseUrl;
 
+    public  static final String MESSAGE = "Rate limit exceeded. Please retry after some time.";
+
     @Override
     @CircuitBreaker(name = "apiService", fallbackMethod = "fallbackResponse")
     public List<Employee> getAll() {
-        log.debug("Fetching all employees from server: {}", serverBaseUrl);
-        final ResponseEntity<ServerResponse<List<ServerEmployee>>> response = restTemplate.exchange(
-                serverBaseUrl,
-                HttpMethod.GET,
-                null,
-                new ParameterizedTypeReference<>() {
-                });
-        final List<ServerEmployee> serverEmployees = Optional.ofNullable(response.getBody())
-                .map(ServerResponse::getData)
-                .orElseGet(ArrayList::new);
-        final List<Employee> mapped = serverEmployees.stream().map(this::toEmployee).toList();
-        log.debug("Fetched {} employees", mapped.size());
-        return mapped;
+        try {
+            log.debug("Fetching all employees from server: {}", serverBaseUrl);
+            final ResponseEntity<ServerResponse<List<ServerEmployee>>> response = restTemplate.exchange(
+                    serverBaseUrl,
+                    HttpMethod.GET,
+                    null,
+                    new ParameterizedTypeReference<>() {
+                    });
+            final List<ServerEmployee> serverEmployees = Optional.ofNullable(response.getBody())
+                    .map(ServerResponse::getData)
+                    .orElseGet(ArrayList::new);
+            final List<Employee> mapped = serverEmployees.stream().map(this::toEmployee).toList();
+            log.debug("Fetched {} employees", mapped.size());
+            return mapped;
+        } catch (HttpClientErrorException.TooManyRequests e) {
+            throw buildTooManyRequests(e);
+        }
     }
 
     public List<Employee> fallbackResponse(Throwable t) {
@@ -76,6 +82,8 @@ public class EmployeeServiceImpl implements EmployeeService {
         } catch (HttpClientErrorException.NotFound e) {
             log.info("Employee not found by id: {}", id);
             return Optional.empty();
+        } catch (HttpClientErrorException.TooManyRequests e) {
+            throw buildTooManyRequests(e);
         }
     }
 
@@ -183,13 +191,12 @@ public class EmployeeServiceImpl implements EmployeeService {
                 // Ignore invalid Retry-After header value
             }
         }
-        String message = "Rate limit exceeded. Please retry after some time.";
-        return new TooManyRequestsException(message, retryAfterSeconds);
+        return new TooManyRequestsException(MESSAGE, retryAfterSeconds);
     }
 
     private TooManyRequestsException buildTooManyRequests(TooManyRequestsException e) {
-        String message = "Rate limit exceeded. Please retry after some time.";
-        return new TooManyRequestsException(message);
+
+        return new TooManyRequestsException(MESSAGE);
     }
 
 }
