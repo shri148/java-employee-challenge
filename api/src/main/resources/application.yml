@@ -4,3 +4,12 @@ server.port: 8111
 
 server:
   base-url: http://localhost:8112/api/v1/employee
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      apiService:
+        failure-rate-threshold: 75
+        wait-duration-in-open-state: 30s
+        sliding-window-size: 50
+        minimum-number-of-calls: 50

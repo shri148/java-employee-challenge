@@ -12,6 +12,11 @@ public class TooManyRequestsException extends RuntimeException {
         this.retryAfterSeconds = retryAfterSeconds;
     }
 
+    public TooManyRequestsException(String message) {
+        super(message);
+        this.retryAfterSeconds = null;
+    }
+
 }
 
 

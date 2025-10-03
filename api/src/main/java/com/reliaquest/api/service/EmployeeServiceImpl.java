@@ -2,6 +2,7 @@ package com.reliaquest.api.service;
 
 import com.reliaquest.api.exception.TooManyRequestsException;
 import com.reliaquest.api.model.*;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
@@ -23,27 +24,33 @@ public class EmployeeServiceImpl implements EmployeeService {
     private final String serverBaseUrl;
 
     @Override
+    @CircuitBreaker(name = "apiService", fallbackMethod = "fallbackResponse")
     public List<Employee> getAll() {
-        try {
-            log.debug("Fetching all employees from server: {}", serverBaseUrl);
-            final ResponseEntity<ServerResponse<List<ServerEmployee>>> response = restTemplate.exchange(
-                    serverBaseUrl,
-                    HttpMethod.GET,
-                    null,
-                    new ParameterizedTypeReference<>() {
-                    });
-            final List<ServerEmployee> serverEmployees = Optional.ofNullable(response.getBody())
-                    .map(ServerResponse::getData)
-                    .orElseGet(ArrayList::new);
-            final List<Employee> mapped = serverEmployees.stream().map(this::toEmployee).toList();
-            log.debug("Fetched {} employees", mapped.size());
-            return mapped;
-        } catch (HttpClientErrorException.TooManyRequests e) {
-            throw buildTooManyRequests(e);
+        log.debug("Fetching all employees from server: {}", serverBaseUrl);
+        final ResponseEntity<ServerResponse<List<ServerEmployee>>> response = restTemplate.exchange(
+                serverBaseUrl,
+                HttpMethod.GET,
+                null,
+                new ParameterizedTypeReference<>() {
+                });
+        final List<ServerEmployee> serverEmployees = Optional.ofNullable(response.getBody())
+                .map(ServerResponse::getData)
+                .orElseGet(ArrayList::new);
+        final List<Employee> mapped = serverEmployees.stream().map(this::toEmployee).toList();
+        log.debug("Fetched {} employees", mapped.size());
+        return mapped;
+    }
+
+    public List<Employee> fallbackResponse(Throwable t) {
+        if(t instanceof TooManyRequestsException){
+            throw buildTooManyRequests((TooManyRequestsException) t);
         }
+        log.error("Fallback executed due to: {}", t.toString());
+        return List.of();
     }
 
     @Override
+    @CircuitBreaker(name = "apiService", fallbackMethod = "fallbackResponse")
     public List<Employee> searchByName(String fragment) {
         return getAll().stream()
                 .filter(e -> Objects.nonNull(e.getName()) && e.getName().toLowerCase().contains(fragment.toLowerCase()))
@@ -51,6 +58,7 @@ public class EmployeeServiceImpl implements EmployeeService {
     }
 
     @Override
+    @CircuitBreaker(name = "apiService", fallbackMethod = "fallbackResponseForGetById")
     public Optional<Employee> getById(String id) {
         try {
             final String url = serverBaseUrl + "/" + id;
@@ -68,9 +76,15 @@ public class EmployeeServiceImpl implements EmployeeService {
         } catch (HttpClientErrorException.NotFound e) {
             log.info("Employee not found by id: {}", id);
             return Optional.empty();
-        } catch (HttpClientErrorException.TooManyRequests e) {
-            throw buildTooManyRequests(e);
         }
+    }
+
+    public Optional<Employee> fallbackResponseForGetById(Throwable t) {
+        log.error("Fallback executed due to: {}", t.toString());
+        if(t instanceof TooManyRequestsException){
+            throw buildTooManyRequests((TooManyRequestsException) t);
+        }
+        return Optional.empty();
     }
 
     @Override
@@ -171,6 +185,11 @@ public class EmployeeServiceImpl implements EmployeeService {
         }
         String message = "Rate limit exceeded. Please retry after some time.";
         return new TooManyRequestsException(message, retryAfterSeconds);
+    }
+
+    private TooManyRequestsException buildTooManyRequests(TooManyRequestsException e) {
+        String message = "Rate limit exceeded. Please retry after some time.";
+        return new TooManyRequestsException(message);
     }
 
 }
