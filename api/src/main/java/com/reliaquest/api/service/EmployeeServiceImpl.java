@@ -35,10 +35,10 @@ public class EmployeeServiceImpl implements EmployeeService {
                     null,
                     new ParameterizedTypeReference<>() {
                     });
-            final var serverEmployees = Optional.ofNullable(response.getBody())
+            final List<ServerEmployee> serverEmployees = Optional.ofNullable(response.getBody())
                     .map(ServerResponse::getData)
                     .orElseGet(ArrayList::new);
-            final var mapped = serverEmployees.stream().map(this::toEmployee).toList();
+            final List<Employee> mapped = serverEmployees.stream().map(this::toEmployee).toList();
             log.debug("Fetched {} employees", mapped.size());
             return mapped;
         } catch (HttpClientErrorException.TooManyRequests e) {
@@ -56,7 +56,7 @@ public class EmployeeServiceImpl implements EmployeeService {
     @Override
     public Optional<Employee> getById(String id) {
         try {
-            final var url = serverBaseUrl + "/" + id;
+            final String url = serverBaseUrl + "/" + id;
             log.debug("Fetching employee by id: {}", id);
             final ResponseEntity<ServerResponse<ServerEmployee>> response = restTemplate.exchange(
                     url,
@@ -64,8 +64,8 @@ public class EmployeeServiceImpl implements EmployeeService {
                     null,
                     new ParameterizedTypeReference<>() {
                     });
-            final var serverEmployee = Optional.ofNullable(response.getBody()).map(ServerResponse::getData).orElse(null);
-            final var result = Optional.ofNullable(serverEmployee).map(this::toEmployee);
+            final ServerEmployee serverEmployee = Optional.ofNullable(response.getBody()).map(ServerResponse::getData).orElse(null);
+            final Optional<Employee> result = Optional.ofNullable(serverEmployee).map(this::toEmployee);
             log.debug("Employee by id {} found: {}", id, result.isPresent());
             return result;
         } catch (HttpClientErrorException.NotFound e) {
@@ -91,7 +91,7 @@ public class EmployeeServiceImpl implements EmployeeService {
     @Override
     public List<String> getTopTenNamesBySalary() {
         log.debug("Computing top ten highest earning employee names");
-        final var names = getAll().stream()
+        final List<String> names = getAll().stream()
                 .sorted(Comparator.comparing(Employee::getSalary, Comparator.nullsLast(Comparator.reverseOrder())))
                 .limit(10)
                 .map(Employee::getName)
@@ -103,13 +103,13 @@ public class EmployeeServiceImpl implements EmployeeService {
     @Override
     public Optional<String> deleteById(String id) {
         log.debug("Deleting employee by id: {}", id);
-        final var employeeOpt = getById(id);
+        final Optional<Employee> employeeOpt = getById(id);
         if (employeeOpt.isEmpty()) {
             log.info("Delete skipped; employee not found for id: {}", id);
             return Optional.empty();
         }
-        final var name = employeeOpt.get().getName();
-        final var deleteInput = new DeleteByName(name);
+        final String name = employeeOpt.get().getName();
+        final DeleteByName deleteInput = new DeleteByName(name);
         final HttpEntity<DeleteByName> entity = new HttpEntity<>(deleteInput);
         final boolean success;
         try {
@@ -142,8 +142,8 @@ public class EmployeeServiceImpl implements EmployeeService {
                     entity,
                     new ParameterizedTypeReference<>() {
                     });
-            final var serverEmployee = Optional.ofNullable(response.getBody()).map(ServerResponse::getData).orElse(null);
-            final var result = Optional.ofNullable(serverEmployee).map(this::toEmployee);
+            final ServerEmployee serverEmployee = Optional.ofNullable(response.getBody()).map(ServerResponse::getData).orElse(null);
+            final Optional<Employee> result = Optional.ofNullable(serverEmployee).map(this::toEmployee);
             log.info("Created employee: {}", result.map(Employee::getId).orElse("<none>"));
             return result;
         } catch (HttpClientErrorException.TooManyRequests e) {
