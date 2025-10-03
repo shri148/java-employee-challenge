@@ -2,6 +2,7 @@ package com.reliaquest.api.service;
 
 import com.reliaquest.api.exception.TooManyRequestsException;
 import com.reliaquest.api.model.CreateEmployeeInput;
+import com.reliaquest.api.model.DeleteEmployeeRequest;
 import com.reliaquest.api.model.Employee;
 import com.reliaquest.api.model.ServerEmployee;
 import com.reliaquest.api.model.ServerResponse;
@@ -109,8 +110,8 @@ public class EmployeeServiceImpl implements EmployeeService {
             return Optional.empty();
         }
         final String name = employeeOpt.get().getName();
-        final DeleteByName deleteInput = new DeleteByName(name);
-        final HttpEntity<DeleteByName> entity = new HttpEntity<>(deleteInput);
+        final DeleteEmployeeRequest deleteInput = new DeleteEmployeeRequest(name);
+        final HttpEntity<DeleteEmployeeRequest> entity = new HttpEntity<>(deleteInput);
         final boolean success;
         try {
             final ResponseEntity<ServerResponse<Boolean>> response = restTemplate.exchange(
@@ -176,13 +177,6 @@ public class EmployeeServiceImpl implements EmployeeService {
         return new TooManyRequestsException(message, retryAfterSeconds);
     }
 
-    private static class DeleteByName {
-        private String name;
-
-        public DeleteByName(String name) {
-            this.name = name;
-        }
-    }
 }
 
 
