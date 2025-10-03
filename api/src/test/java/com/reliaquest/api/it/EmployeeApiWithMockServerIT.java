@@ -39,7 +39,7 @@ class EmployeeApiWithMockServerIT {
             try {
                 mockWebServer = new MockWebServer();
                 mockWebServer.start();
-                String baseUrl = mockWebServer.url("/api/v1/employee").toString();
+                String baseUrl = mockWebServer.url("/api/v2/employee").toString();
                 TestPropertyValues.of("server.base-url=" + baseUrl).applyTo(applicationContext);
             } catch (IOException e) {
                 throw new RuntimeException(e);
@@ -55,7 +55,7 @@ class EmployeeApiWithMockServerIT {
     }
 
     private String apiUrl(String path) {
-        return "http://localhost:" + port + "/api/v1/employee" + path;
+        return "http://localhost:" + port + "/api/v2/employee" + path;
     }
 
     @Test

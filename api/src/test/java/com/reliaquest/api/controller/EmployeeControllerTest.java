@@ -29,7 +29,7 @@ class EmployeeControllerTest {
     @Test
     void getAllEmployees_returnsOk() throws Exception {
         when(employeeService.getAll()).thenReturn(List.of(Employee.builder().id("1").name("A").build()));
-        mockMvc.perform(get("/api/v1/employee"))
+        mockMvc.perform(get("/api/v2/employee"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id", is("1")));
     }
@@ -37,13 +37,13 @@ class EmployeeControllerTest {
     @Test
     void getEmployeeById_notFound() throws Exception {
         when(employeeService.getById("x")).thenReturn(Optional.empty());
-        mockMvc.perform(get("/api/v1/employee/x"))
+        mockMvc.perform(get("/api/v2/employee/x"))
                 .andExpect(status().isNotFound());
     }
 
     @Test
     void createEmployee_badRequestOnEmptyBody() throws Exception {
-        mockMvc.perform(post("/api/v1/employee").contentType(MediaType.APPLICATION_JSON).content("{}"))
+        mockMvc.perform(post("/api/v2/employee").contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isBadRequest());
     }
 }
